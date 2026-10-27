@@ -4,15 +4,15 @@ import Search from './components/Search';
 import Hero from './components/Hero';
 import Spinner from './components/Spinner';
 import MovieCard from './components/MovieCard';
+import StatusMessage from './components/StatusMessage';
 import { useSearchMovies } from './hooks/useSearchMovies';
 import Footer from './components/Footer';
 import { useDebounce } from 'react-use';
 import { useTrendingMovies } from './hooks/useTrendingMovies';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { posterUrl } from './services/api';
 
 const App = () => {
-  const navigate = useNavigate();
-
   const { movies, isLoading, error } = useMovies();
   const [searchValue, setSearchValue] = useState('');
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
@@ -21,39 +21,41 @@ const App = () => {
 
   const { searchResults, isSearching, searchError } = useSearchMovies(debouncedSearchTerm);
   const { trendingMovies, trendingLoading, trendingError } = useTrendingMovies(debouncedSearchTerm);
-  const displayedMovies = searchValue ? searchResults : movies;
-  const isDisplayLoading = searchValue ? isSearching : isLoading;
-  const displayError = searchValue ? searchError : error;
 
+  const isSearchMode = searchValue.trim() !== '';
+  // Treat the debounce window as loading so "no results" doesn't flash while typing.
+  const isDebouncing = searchValue !== debouncedSearchTerm;
+  const displayedMovies = isSearchMode ? searchResults : movies;
+  const isDisplayLoading = isSearchMode ? isSearching || isDebouncing : isLoading;
+  const displayError = isSearchMode ? searchError : error;
 
   return (
-    <main className="w-screen h-screen flex flex-col bg-center bg-cover absolute z-0 overflow-y-auto hide-scrollbar">
-      <div className='wrapper mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex-grow'>
-        <header className="py-8 px-4">
+    <main className="min-h-screen flex flex-col">
+      <div className="pattern" aria-hidden="true" />
+      <div className="wrapper flex-grow">
+        <header>
           <Hero />
-          <h1 className="text-4xl md:text-6xl text-center text-white tracking-wide">
-            Discover Your Next Favorite Movie in Seconds
+          <h1>
+            Discover Your Next <span className="text-gradient">Favorite Movie</span> in Seconds
           </h1>
           <Search searchValue={searchValue} setSearchValue={setSearchValue} />
         </header>
 
-        {trendingMovies.length > 0 && (
-          <section className='trending'>
-            <h2 className="text-white text-2xl mb-4 text-center">Trending Now</h2>
-            {trendingLoading ? (
+        {(trendingLoading || trendingError || trendingMovies.length > 0) && (
+          <section className="trending">
+            <h2>Trending Now</h2>
+            {trendingLoading && trendingMovies.length === 0 ? (
               <Spinner />
             ) : trendingError ? (
-              <p className='text-red-500 text-center'>{trendingError}</p>
+              <StatusMessage type="error">{trendingError}</StatusMessage>
             ) : (
               <ul>
                 {trendingMovies.map((movie, index) => (
-                  <li onClick={() => navigate(`/movies/${movie.id}`)} className='cursor-pointer' key={movie.id}>
-                    <p className='cursor-default'>{index + 1}</p>
-                    <img className='object-fill' src={
-                      movie.poster_path
-                        ? `https://image.tmdb.org/t/p/w500/${movie.poster_path}`
-                        : `/no-movie.png`
-                    } alt={movie.title} />
+                  <li key={movie.id}>
+                    <p aria-hidden="true">{index + 1}</p>
+                    <Link to={`/movies/${movie.id}`} className="shrink-0" title={movie.title}>
+                      <img src={posterUrl(movie.poster_path, 'w342')} alt={movie.title} loading="lazy" />
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -61,25 +63,26 @@ const App = () => {
           </section>
         )}
 
-        <section className='space-y-9 text-center'>
-          <h2 className="text-white text-2xl mb-4">{searchValue ? 'Search Results' : 'Latest Movies'}</h2>
-          {displayedMovies.length <= 0 && <h3 className='mt-5'>No movies found with that prompt</h3>}
+        <section className="all-movies">
+          <h2>{isSearchMode ? `Results for "${searchValue.trim()}"` : 'Latest Movies'}</h2>
 
           {isDisplayLoading ? (
             <Spinner />
           ) : displayError ? (
-            <p className='text-red-500'>{displayError}</p>
-          ) :
-            (displayedMovies.length > 0 &&
-              <div className="md:grid flex flex-col justify-center items-center gap-5 xs:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                {displayedMovies.map((movie) => (<MovieCard key={movie.id} movie={movie} />))}
-              </div>)
-          }
+            <StatusMessage type="error">{displayError}</StatusMessage>
+          ) : displayedMovies.length === 0 ? (
+            <StatusMessage>
+              {isSearchMode ? 'No movies found with that title. Try another search.' : 'No movies available right now.'}
+            </StatusMessage>
+          ) : (
+            <div className="movie-grid">
+              {displayedMovies.map((movie) => (<MovieCard key={movie.id} movie={movie} />))}
+            </div>
+          )}
         </section>
-
-      </div >
+      </div>
       <Footer />
-    </main >
+    </main>
   );
 };
 
