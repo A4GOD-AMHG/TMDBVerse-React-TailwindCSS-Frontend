@@ -2,65 +2,26 @@ import axios from 'axios';
 
 const API = axios.create({
     baseURL: import.meta.env.VITE_GO_FIBER_BACKEND,
-    headers: {
-        'Content-Type': 'application/json',
-    }
+    timeout: 10000,
 });
 
-export const movieService = {
-    searchMovies: async (query) => {
-        try {
-            const url = `/search?q=${encodeURIComponent(query)}`;
-
-            const response = await API.get(url);
-            console.log('[API] Search movies response:', response.data.length, 'results');
-            return response.data;
-        } catch (error) {
-            console.error('[API Error] Search movies:', error);
-            throw new Error(error.response?.data?.error || 'Failed to search movies');
-        }
-    },
-
-    getDiscoverMovies: async () => {
-        try {
-            const url = '/discover';
-            const response = await API.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('[API Error] Discover movies:', error);
-            throw new Error(error.response?.data?.error || 'Failed to fetch movies');
-        }
-    },
-
-    getTrendingMovies: async () => {
-        try {
-            const url = '/trending';
-            const response = await API.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('[API Error] Trending movies:', error);
-            throw new Error(error.response?.data?.error || 'Failed to fetch trending movies');
-        }
-    },
-    getMovieDetails: async (movieId) => {
-        try {
-            const url = `/movies/${movieId}`;
-            const response = await API.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('[API Error] Movie details:', error);
-            throw new Error(error.response?.data?.error || 'Failed to fetch movie details');
-        }
-    },
-
-    getPopularMovies: async () => {
-        try {
-            const url = '/popular';
-            const response = await API.get(url);
-            return response.data;
-        } catch (error) {
-            console.error('[API Error] Popular movies:', error);
-            throw new Error(error.response?.data?.error || 'Failed to fetch hero movies');
-        }
-    },
+// The backend always answers errors as { error: string }.
+const get = async (url, fallbackMessage, params) => {
+    try {
+        const { data } = await API.get(url, { params });
+        return data;
+    } catch (error) {
+        throw new Error(error.response?.data?.error || fallbackMessage);
+    }
 };
+
+export const movieService = {
+    searchMovies: (query) => get('/search', 'Failed to search movies', { q: query }),
+    getDiscoverMovies: () => get('/discover', 'Failed to fetch movies'),
+    getTrendingMovies: () => get('/trending', 'Failed to fetch trending movies'),
+    getMovieDetails: (movieId) => get(`/movies/${movieId}`, 'Failed to fetch movie details'),
+    getPopularMovies: () => get('/popular', 'Failed to fetch popular movies'),
+};
+
+export const posterUrl = (path, size = 'w500') =>
+    path ? `https://image.tmdb.org/t/p/${size}${path}` : '/no-movie.png';

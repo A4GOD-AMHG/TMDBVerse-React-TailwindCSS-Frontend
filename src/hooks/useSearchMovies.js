@@ -1,34 +1,12 @@
-import { useState, useEffect } from 'react';
 import { movieService } from '../services/api';
+import { useFetch } from './useFetch';
 
+// The query is already debounced by the caller.
 export const useSearchMovies = (searchQuery) => {
-    const [searchResults, setSearchResults] = useState([]);
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchError, setSearchError] = useState('');
-
-    useEffect(() => {
-        const fetchSearchResults = async () => {
-            if (!searchQuery) {
-                setSearchResults([]);
-                return;
-            }
-
-            setIsSearching(true);
-            setSearchError('');
-
-            try {
-                const data = await movieService.searchMovies(searchQuery);
-                setSearchResults(data);
-            } catch (err) {
-                setSearchError(err.message);
-            } finally {
-                setIsSearching(false);
-            }
-        };
-
-        const debounceTimer = setTimeout(fetchSearchResults, 300);
-        return () => clearTimeout(debounceTimer);
-    }, [searchQuery]);
-
-    return { searchResults, isSearching, searchError };
+    const query = searchQuery.trim();
+    const { data, isLoading, error } = useFetch(
+        () => (query ? movieService.searchMovies(query) : Promise.resolve([])),
+        [query],
+    );
+    return { searchResults: data ?? [], isSearching: isLoading, searchError: error };
 };
